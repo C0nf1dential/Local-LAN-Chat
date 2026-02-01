@@ -7,7 +7,7 @@ def handle_client(client):
     while True:
         try:
             message = client.recv(1024)
-            data = json.loads(message)
+            data = json.loads(message.decode())
             type, payload = data['type'], data['payload']
             router.route(client,type,payload)
             
