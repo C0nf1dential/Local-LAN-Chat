@@ -1,4 +1,4 @@
-import Server.src.servermain as servermain
+import servermain
 import utilities
 import state
 import json

@@ -1,19 +1,35 @@
 import utilities
 import state
-def registration(server):
-    global registration_result
-    while True:
-        username=input("Enter your username: ")
-        utilities.send(server, 'register', {'username': username})
+import e2ee
+import tui_inputs
 
-        state.registration_event.wait()
-        state.registration_event.clear()
+#to server
+def submit_registration(username):
+    if state.current_state != state.ClientState.REGISTERING:
+        return
 
-        if registration_result == 'ok':
-            break
-        else:
-            print("Username is taken. Choose a new one")
-            registration_result = None
+    state.pending_username = username
+    utilities.send("register", {"username": username})
 
-def chat():
-    pass #write
+def initiate_chat(target_user):
+    utilities.send("chat_init", {"username": target_user})
+
+
+def send_chat_message(message):
+    encrypted = e2ee.encrypt(message)
+    utilities.send("chat", {"message": encrypted})
+
+#from server
+
+def display_chat_message(payload):
+    message = e2ee.decrypt(payload["message"])
+    tui_inputs.DisplayChat(message)
+
+
+def show_registration_error():
+    tui_inputs.ShowError("Username already taken")
+
+
+def show_user_list(users):
+    tui_inputs.ShowUserList(users)
+    

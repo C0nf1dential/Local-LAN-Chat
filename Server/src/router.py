@@ -1,6 +1,6 @@
 import handlers
 import utilities
-def router(client, type, payload):
+def route(client, type, payload):
     username, info = utilities.get_user_by_socket(client)
     if not username:
         if type == "register":
@@ -17,5 +17,7 @@ def router(client, type, payload):
             handlers.handle_chat(to, payload)
             return
         else:
-            pass#error
-
+            pass#
+        
+    if userstate == "IDLE":
+        pass #incomplete

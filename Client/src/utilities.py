@@ -1,5 +1,5 @@
 import json
 import clientmain
-def send(server, type, payload):
-    data = json.loads({'type': type, 'payload': payload})
-    server.send(data.encode())
+def send(type, payload):
+    data = json.dumps({'type': type, 'payload': payload})
+    clientmain.server.send(data.encode())
