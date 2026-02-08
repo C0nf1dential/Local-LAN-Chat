@@ -1,6 +1,8 @@
 import tkinter as tk
 import queue
+import clientmain
 import threading
+import state
 
 # queue for sending user input to main program
 input_queue = queue.Queue()
@@ -25,6 +27,8 @@ def start():
     entry.focus()#enter data right away
     entry.bind("<Return>", on_enter)
 
+    root.protocol("WM_DELETE_WINDOW", clientmain.graceful_shutdown)# when window is closed run graceful shutdown
+    
     uiReady.set()
     root.mainloop()
 
@@ -43,13 +47,14 @@ def set_enabled(enabled):
         state = "normal"
     else:
         state = "disabled"
-    root.after(0, lambda: entry.config(state=state)) # type: ignore
+    root.after(0, lambda: entry.config(state=state)) # type: ignore #root.after for thread safe modifying
 
 def input_dispatcher():
     global input_queue
-    a = input_queue.get()
-    input_queue.task_done()
-    return a
+    while not state.shutdown_event.is_set():
+        a = input_queue.get()
+        input_queue.task_done()
+        return a
 
 def get_input(prompt):
     try:
@@ -60,7 +65,5 @@ def get_input(prompt):
         return a
     finally:
         set_enabled(False)
-
-
 
 

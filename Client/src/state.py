@@ -13,3 +13,4 @@ registration_result = None
 messages = [] #eg: [{direction:"sent"/"recv"", content:"hi"}]
 current_user = None
 chat_partner = None
+shutdown_event = threading.Event()

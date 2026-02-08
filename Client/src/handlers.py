@@ -1,7 +1,9 @@
 import utilities
 import state
+import clientmain
 import e2ee
 import tui_inputs
+
 
 #to server
 def submit_registration(username):
@@ -32,4 +34,3 @@ def show_registration_error():
 
 def show_user_list(users):
     tui_inputs.ShowUserList(users)
-    
