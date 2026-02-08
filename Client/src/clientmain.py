@@ -1,6 +1,6 @@
-import handlers
 import router
 import state
+import tui_inputs
 import socket
 import json
 import threading
@@ -9,8 +9,8 @@ import queue
 
 def connect():
     global server
-    SERVER_IP = input("Enter the server's IP address: ")
-    PORT = int(input("Enter the server's port: "))
+    SERVER_IP = tui_inputs.get_input("Enter the server's IP address: ")
+    PORT = int(tui_inputs.get_input("Enter the server's port: "))
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.connect((SERVER_IP, PORT))
 
@@ -32,6 +32,9 @@ def receive():
 
 
 def main():
+    ui_thread = threading.Thread(target=tui_inputs.start, daemon=True)
+    ui_thread.start()
+    tui_inputs.uiReady.wait()
     connect()
     threading.Thread(target=receive, daemon=True).start()
 
