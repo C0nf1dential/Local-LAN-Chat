@@ -9,50 +9,93 @@ import handlers
 import utilities
 import threading
 import queue
+import time
 
 ui_thread = None
 receive_thread = None
+server = None
 
 def handle_sigint(sig, frame):
     graceful_shutdown()
 
 signal.signal(signal.SIGINT, handle_sigint)
 
-def connect():
+def connect(server_ip, port):
     global server
-    SERVER_IP = tui_inputs.get_input("Enter the server's IP address: ")
-    PORT = int(tui_inputs.get_input("Enter the server's port: "))
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.connect((SERVER_IP, PORT))
-
-
-incoming = queue.Queue() #for transporting data out of threaded functions
-def receive():
     try:
-        while True:
-            data = server.recv(1024)
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.connect((server_ip, port))
+        state.connection_ready.set()  # Signal that connection is established
+        print(f"Connected to server at {server_ip}:{port}")
+    except Exception as e:
+        handlers.show_server_connection_error(str(e))
+
+
+# incoming queue now stored in shared `state` to avoid duplicate-module issues
+def receive():
+    global server
+    state.connection_ready.wait()
+
+    if server is None:
+        state.incoming.put(None)
+        return
+
+    import json as _json
+    from json import JSONDecoder
+
+    decoder = JSONDecoder()
+    buffer = ""
+    try:
+        while not state.shutdown_event.is_set():
+            try:
+                server.settimeout(0.5)
+            except:
+                pass
+
+            try:
+                data = server.recv(1024)
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+
             if not data:
                 break
 
             try:
-                incoming.put(json.loads(data.decode()))# Puts the recieved dictionary into the queue
-            except json.JSONDecodeError:
+                chunk = data.decode()
+            except Exception:
                 continue
+            buffer += chunk
+
+            # handle concatenated JSON objects by progressively decoding
+            while buffer:
+                try:
+                    obj, idx = decoder.raw_decode(buffer)
+                    buffer = buffer[idx:].lstrip()
+                    state.incoming.put(obj)
+                except _json.JSONDecodeError:
+                    # not enough data yet for a full JSON object
+                    break
     finally:
-        incoming.put(None)
+        state.incoming.put(None)
+
 
 def graceful_shutdown():
-    global ui_thread, receive_thread
+    global ui_thread, receive_thread, server
     print("Shutting down...")
     state.shutdown_event.set()
+    
+    time.sleep(0.1)  #gib receive thread time to notice
 
     try:
         utilities.send("disconnect", {})
     except:
         pass
     try:
-        server.shutdown(socket.SHUT_RDWR)# sends tcp FIN
-        server.close()
+        if server:
+            server.shutdown(socket.SHUT_RDWR)
+            server.close()
     except:
         pass
     if receive_thread:
@@ -68,13 +111,12 @@ def main():
     ui_thread = threading.Thread(target=tui_inputs.start, daemon=True)
     ui_thread.start()
     tui_inputs.uiReady.wait()
-    connect()
-    receive_thread = threading.Thread(target=receive, daemon=True)
-    receive_thread.start()
+    
+    # Prompt for server info (IP and port) before connecting
+    handlers.prompt_for_server_info()
 
     while True:
-        datadict = incoming.get()  # gets the dict from queue
-        
+        datadict = state.incoming.get()
 
         if datadict is None:
             print("Disconnected from server.")

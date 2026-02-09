@@ -1,26 +1,26 @@
 import tkinter as tk
-import queue
 import clientmain
 import threading
 import state
-
-# queue for sending user input to main program
-input_queue = queue.Queue()
+import utilities
+import handlers
 
 root = None
 entry = None
+prompt_label = None
 uiReady = threading.Event()
+pending_input_callback = None
 
 
 def start():
-    global root, entry
+    global root, entry, prompt_label
 
     root = tk.Tk()
     root.title("LAN Chat Input")
     root.configure(bg="#ffffff") 
 
-    label = tk.Label(root, text=">", font=("Cascadia Code", 12))
-    label.grid(row=0, column=0, padx=(10, 2), pady=20)
+    prompt_label = tk.Label(root, text="", font=("Cascadia Code", 12))
+    prompt_label.grid(row=0, column=0, padx=(10, 2), pady=20)
 
     entry = tk.Entry(root, font=("Cascadia Code", 12), borderwidth=0, state = "disabled")
     entry.grid(row=0, column=1, padx=2, pady=20)
@@ -33,37 +33,73 @@ def start():
     root.mainloop()
 
 def on_enter(event):
+    global pending_input_callback
     text = entry.get().strip() # type: ignore
     if not text:
         return
 
-    input_queue.put(text)
     entry.delete(0, tk.END) # type: ignore
+    
+    if pending_input_callback:
+        callback = pending_input_callback
+        pending_input_callback = None
+        set_enabled(False)
+        callback(text)
 
 
 def set_enabled(enabled):
-    global root
+    global root, prompt_label
     if enabled:
         state = "normal"
     else:
         state = "disabled"
-    root.after(0, lambda: entry.config(state=state)) # type: ignore #root.after for thread safe modifying
+        prompt_label.config(text="")
+    root.after(0, lambda: entry.config(state=state))
 
-def input_dispatcher():
-    global input_queue
-    while not state.shutdown_event.is_set():
-        a = input_queue.get()
-        input_queue.task_done()
-        return a
+def request_input(callback, prompt=""):
+    global pending_input_callback, prompt_label
+    pending_input_callback = callback
+    prompt_label.config(text=prompt)
+    set_enabled(True)
 
-def get_input(prompt):
-    try:
-        set_enabled(True)
-        print(prompt)
-        a = input_dispatcher()
-        print(a)
-        return a
-    finally:
-        set_enabled(False)
+showingList = False
+userLcached = []
+def ShowUsersList(userlist):
+    global showingList, userLcached
 
+    if not showingList:
+        showingList = True
+        if not userlist:
+            print("\n[No other users available yet]")
+        else:
+            print("\n📋 Available users to chat with:")
+            for user in userlist:
+                print(f"  • {user}")
+        userLcached = userlist
+        request_input(handle_username_selection, "Select user: ")
 
+    else: #list is already printed
+        if userlist != userLcached:
+            added, removed = utilities.compareLists(userLcached, userlist)
+            if added:
+                print("[+]", added, "ready to chat")
+            if removed:
+                print("[-]", removed, "no longer available to chat")
+            userLcached = userlist
+
+def handle_username_selection(username):
+    global showingList
+    showingList = False
+    # Validate that the selected username exists in the cached list
+    if username not in userLcached:
+        print(f"[ERROR] User '{username}' is not available in the list")
+        request_input(handle_username_selection, "Select user: ")
+        return
+    
+    handlers.initiate_chat(username)
+
+def ShowError(message):
+    print(f"[ERROR] {message}")
+
+def DisplayChat(message):
+    print(f"[MSG] {message}")

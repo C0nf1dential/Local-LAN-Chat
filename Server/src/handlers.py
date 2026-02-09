@@ -4,20 +4,25 @@ import state
 import servermain
 import utilities
 import json
+import time
 
-def add_user(username, client):
+def add_user(username, client, should_broadcast=True):
     state.users[username] = {
         "socket": client,
         "state": "IDLE",
         "chat_with": None
     }
-    broadcast_user_list()
+    if should_broadcast:
+        broadcast_user_list()
+    print(state.users)
 
 
 def remove_user(username):
     if username in state.users:
         del state.users[username]
         broadcast_user_list()
+        print(state.users)
+
 
 
 def set_user_state(username, new_state, chat_with=None):
@@ -25,26 +30,77 @@ def set_user_state(username, new_state, chat_with=None):
     user["state"] = new_state
     user["chat_with"] = chat_with
     broadcast_user_list()
+    print(state.users)
+
 
 def handle_register(client, message):
-    u = message['username']
-    if u in state.users:
-        payload = {"message": "Username_Taken"}
-        utilities.send(client, 'register_result', payload)
+    u = message.get('username')
+    if not u:
+        utilities.send_error(client, 'invalid_request', 'missing username')
+        return
 
-    add_user(u, client)
-    client.send(json.dumps({'type': 'register_result', 'message':'ok'}).encode())
-    payload = {"message": "ok"}
-    utilities.send(client, 'register_result', payload)
+    if u in state.users:
+        utilities.send(client, 'register_result', {"message": "Username_Taken"})
+        return
+
+    # register user WITHOUT broadcasting yet
+    add_user(u, client, should_broadcast=False)
+    # Send register result to newly registered user
+    utilities.send(client, 'register_result', {"message": "ok"})
+    # NOW broadcast to all IDLE users (including the newly registered one)
+    broadcast_user_list()
 
 def handle_chat(to, payload):
     sendsocket = state.users[to]['socket']
     utilities.send(sendsocket, 'chat', payload)
 
 def broadcast_user_list():
-    payload = {"users": list(state.users.keys())}
+    time.sleep(0.05) # slight delay to ensure state is updated before broadcasting
+    payload = {'users': list(state.users.keys())}
     for username, info in state.users.items():
         if info['state'] == "IDLE":
-            utilities.send(username, 'user_list', payload)
+            # send to the user's socket
+            sock = info.get('socket')
+            if sock:
+                utilities.send(sock, 'user_list', payload)
+
+
+def handle_chatrequest(client, from_username, payload):
+    target_user = payload.get("target")
     
+    # Check if target user exists and is IDLE
+    if target_user not in state.users:
+        utilities.send(client, 'chatrequest_result', {"message": "declined", "from": target_user, "reason": "User not found"})
+        return
     
+    target_info = state.users[target_user]
+    if target_info['state'] != "IDLE":
+        utilities.send(client, 'chatrequest_result', {"message": "declined", "from": target_user, "reason": "User is busy"})
+        return
+    
+    # Forward chat request to target user with sender info
+    utilities.send(target_user, 'chatrequest', {"from": from_username})
+
+
+def handle_chatrequest_result(client, from_username, payload):
+    message = payload.get("message")
+    to_user = payload.get("to")
+    # Verify that to_user is still connected
+    if to_user not in state.users:
+        return
+    
+    to_user_info = state.users[to_user]
+    
+    if message == "accepted":
+        # Change both users' states to CHATTING
+        set_user_state(from_username, "CHATTING", to_user)
+        set_user_state(to_user, "CHATTING", from_username)
+        
+        # Notify both users that chat has started
+        utilities.send(to_user, 'chat_started', {"with": from_username})
+        utilities.send(from_username, 'chat_started', {"with": to_user})
+        
+    elif message == "declined":
+        # Just forward decline message to initiator
+        utilities.send(to_user, 'chatrequest_result',
+                      {"message": "declined", "from": from_username})
