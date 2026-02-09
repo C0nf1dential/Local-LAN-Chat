@@ -19,7 +19,7 @@ def start():
     root.title("LAN Chat Input")
     root.configure(bg="#ffffff") 
 
-    prompt_label = tk.Label(root, text="", font=("Cascadia Code", 12))
+    prompt_label = tk.Label(root, text="Disabled", font=("Cascadia Code", 12))
     prompt_label.grid(row=0, column=0, padx=(10, 2), pady=20)
 
     entry = tk.Entry(root, font=("Cascadia Code", 12), borderwidth=0, state = "disabled")
@@ -47,10 +47,9 @@ def on_enter(event):
     
     if pending_input_callback:
         callback = pending_input_callback
-        # For chat mode: keep callback and enabled state
-        # For other prompts: clear callback and disable
-        is_chat_mode = state.current_state == state.ClientState.CHATTING
-        if not is_chat_mode:
+        # for chat mode: keep callback and enabled state
+        # for other prompts: clear callback and disable
+        if not state.current_state == state.ClientState.CHATTING:
             pending_input_callback = None
             set_enabled(False)
         callback(text)
@@ -81,9 +80,9 @@ def ShowUsersList(userlist):
         if not userlist:
             print("\n[No other users available yet]")
         else:
-            print("\n📋 Available users to chat with:")
+            print("\nAvailable users to chat with:")
             for user in userlist:
-                print(f"  • {user}")
+                print(f"    -{user}")
         userLcached = userlist
         request_input(handle_username_selection, "Select user: ")
 
@@ -111,7 +110,6 @@ def ShowError(message):
     print(f"[ERROR] {message}")
 
 def start_chat(chat_partner):
-    """Set up TUI for active chat mode."""
     global prompt_label, showingList, pending_input_callback
     showingList = False  # Exit user selection mode
     pending_input_callback = lambda msg: handlers.send_chat_message(msg)

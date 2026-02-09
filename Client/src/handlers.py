@@ -52,21 +52,18 @@ def submit_registration(username):
     state.pendingUsername = username
     utilities.send("register", {"username": username})
 
-def initiate_chat(target_user):
-    """Send a chat request to initiate conversation with target user"""
+def initiate_chat(target_user): #i mean send chatrequest
     utilities.send("chatrequest", {"target": target_user})
 
 
 def send_chat_message(message):
-    """Send an encrypted chat message to the partner."""
-    encrypted = e2ee.encrypt(message)
-    # Display message immediately on sender's side
+    encrypted = e2ee.encrypt(message)#not implemented yet
+    # risplay message immediately on sender side
     tui_inputs.DisplayChat(f"You: {message}")
     utilities.send("chat", {"message": encrypted})
 
 
 def end_chat():
-    """End the current chat session and return to user selection."""
     if state.current_state != state.ClientState.CHATTING:
         return
     partner = state.chat_partner
@@ -77,22 +74,19 @@ def end_chat():
 def handle_chat_request(payload): #incomung
     from_user = payload.get("from")
     prompt = f"User '{from_user}' wants to chat. Accept? (yes/no): "
-    tui_inputs.request_input(partial(_handle_chat_request_response, from_user), prompt)
+    tui_inputs.request_input(lambda response: _handle_chat_request_response(from_user, response), prompt)
 
-def _handle_chat_request_response(from_user, response):
+def _handle_chat_request_response(from_user, response): 
     response = response.lower().strip()
     if response == "yes":
         utilities.send("chatrequest_result", {"message": "accepted", "to": from_user})
     else:
         utilities.send("chatrequest_result", {"message": "declined", "to": from_user})
-        # Reset showingList so next user_list broadcast re-enables input
         tui_inputs.showingList = False
-        # Re-show the user list to allow selecting another user
         tui_inputs.ShowUsersList(tui_inputs.userLcached)
 
 
 def handle_chat_accepted(partner):
-    """Called when this user initiates a chat that is accepted."""
     state.current_state = state.ClientState.CHATTING
     state.chat_partner = partner
     tui_inputs.start_chat(partner)
