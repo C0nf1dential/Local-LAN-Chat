@@ -15,7 +15,7 @@ def route(client, msg_type, payload):
     if userstate == "CHATTING":
         if msg_type == "chat":
             to = info["chat_with"]
-            handlers.handle_chat(to, payload)
+            handlers.handle_chat(username, to, payload)
             return
         
     if userstate == "IDLE":

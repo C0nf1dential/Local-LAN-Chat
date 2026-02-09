@@ -29,7 +29,9 @@ def set_user_state(username, new_state, chat_with=None):
     user = state.users[username]
     user["state"] = new_state
     user["chat_with"] = chat_with
-    broadcast_user_list()
+    # Only broadcast when users are returning to IDLE (after chat ends), not during CHATTING transitions
+    if new_state == "IDLE":
+        broadcast_user_list()
     print(state.users)
 
 
@@ -50,13 +52,19 @@ def handle_register(client, message):
     # NOW broadcast to all IDLE users (including the newly registered one)
     broadcast_user_list()
 
-def handle_chat(to, payload):
+def handle_chat(from_username, to, payload):
+    """Send chat message from sender to recipient."""
+    # Send message to recipient
     sendsocket = state.users[to]['socket']
     utilities.send(sendsocket, 'chat', payload)
+    # Also send a confirmation back to sender (optional echo)
+    # This ensures sender knows message was delivered
 
 def broadcast_user_list():
     time.sleep(0.05) # slight delay to ensure state is updated before broadcasting
-    payload = {'users': list(state.users.keys())}
+    # Only include IDLE users in the list (filter out those chatting)
+    idle_users = [u for u, info in state.users.items() if info['state'] == "IDLE"]
+    payload = {'users': idle_users}
     for username, info in state.users.items():
         if info['state'] == "IDLE":
             # send to the user's socket
@@ -67,6 +75,11 @@ def broadcast_user_list():
 
 def handle_chatrequest(client, from_username, payload):
     target_user = payload.get("target")
+    
+    # Reject self-requests
+    if from_username == target_user:
+        utilities.send(client, 'chatrequest_result', {"message": "declined", "from": target_user, "reason": "Cannot chat with yourself"})
+        return
     
     # Check if target user exists and is IDLE
     if target_user not in state.users:
@@ -96,6 +109,9 @@ def handle_chatrequest_result(client, from_username, payload):
         set_user_state(from_username, "CHATTING", to_user)
         set_user_state(to_user, "CHATTING", from_username)
         
+        # Notify requester that request was accepted
+        utilities.send(to_user, 'chatrequest_result', {"message": "accepted", "from": from_username})
+        
         # Notify both users that chat has started
         utilities.send(to_user, 'chat_started', {"with": from_username})
         utilities.send(from_username, 'chat_started', {"with": to_user})
@@ -104,3 +120,5 @@ def handle_chatrequest_result(client, from_username, payload):
         # Just forward decline message to initiator
         utilities.send(to_user, 'chatrequest_result',
                       {"message": "declined", "from": from_username})
+        # Both users remain IDLE, broadcast updated user list
+        broadcast_user_list()

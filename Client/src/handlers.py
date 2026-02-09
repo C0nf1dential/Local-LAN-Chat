@@ -59,6 +59,8 @@ def initiate_chat(target_user):
 
 def send_chat_message(message):
     encrypted = e2ee.encrypt(message)
+    # Display message immediately on sender's side
+    tui_inputs.DisplayChat(f"You: {message}")
     utilities.send("chat", {"message": encrypted})
 
 
@@ -75,16 +77,23 @@ def _handle_chat_request_response(from_user, response):
         utilities.send("chatrequest_result", {"message": "declined", "to": from_user})
 
 
+def handle_chat_accepted(partner):
+    """Called when this user initiates a chat that is accepted."""
+    state.current_state = state.ClientState.CHATTING
+    state.chat_partner = partner
+    tui_inputs.start_chat(partner)
+    tui_inputs.DisplayChat(f"Chat with '{partner}' has been accepted! You can now type messages.")
+
 def handle_chat_request_result(payload):
     message = payload.get("message")
-    from_user = payload.get("from")
+    requester = payload.get("from")
     
     if message == "accepted":
-        tui_inputs.DisplayChat(f"Chat with '{from_user}' has been accepted!")
-        state.current_state = state.ClientState.CHATTING
-        state.chat_partner = from_user
+        # Don't transition here; wait for chat_started to avoid conflicting with responder's transition
+        tui_inputs.DisplayChat(f"Chat with '{requester}' has been accepted!")
     elif message == "declined":
-        tui_inputs.DisplayChat(f"Chat request to '{from_user}' was declined.")
+        tui_inputs.DisplayChat(f"Chat request to '{requester}' was declined. You can try another user.")
+        # State remains IDLE; next user_list broadcast will re-enable selection
 
 #from server
 

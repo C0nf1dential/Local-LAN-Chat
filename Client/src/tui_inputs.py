@@ -42,8 +42,12 @@ def on_enter(event):
     
     if pending_input_callback:
         callback = pending_input_callback
-        pending_input_callback = None
-        set_enabled(False)
+        # For chat mode: keep callback and enabled state
+        # For other prompts: clear callback and disable
+        is_chat_mode = state.current_state == state.ClientState.CHATTING
+        if not is_chat_mode:
+            pending_input_callback = None
+            set_enabled(False)
         callback(text)
 
 
@@ -100,6 +104,14 @@ def handle_username_selection(username):
 
 def ShowError(message):
     print(f"[ERROR] {message}")
+
+def start_chat(chat_partner):
+    """Set up TUI for active chat mode."""
+    global prompt_label, showingList, pending_input_callback
+    showingList = False  # Exit user selection mode
+    pending_input_callback = lambda msg: handlers.send_chat_message(msg)
+    prompt_label.config(text=f"Chat with {chat_partner}:")
+    set_enabled(True)
 
 def DisplayChat(message):
     print(f"[MSG] {message}")
