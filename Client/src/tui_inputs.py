@@ -40,6 +40,11 @@ def on_enter(event):
 
     entry.delete(0, tk.END) # type: ignore
     
+    # Check for end chat keyword
+    if text.lower() == "end()" and state.current_state == state.ClientState.CHATTING:
+        handlers.end_chat()
+        return
+    
     if pending_input_callback:
         callback = pending_input_callback
         # For chat mode: keep callback and enabled state

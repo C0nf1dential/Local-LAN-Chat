@@ -6,13 +6,21 @@ import router
 
 
 def _cleanup_client(client):
+    import handlers
     username, info = utilities.get_user_by_socket(client)
     if username and info:
         # notify chat partner if any
         chat_with = info.get('chat_with')
         if chat_with and chat_with in state.users:
             try:
-                utilities.send(state.users[chat_with]['socket'], 'chat_end', {'message': 'Disconnected'})
+                # Set partner's state back to IDLE
+                partner_info = state.users[chat_with]
+                partner_info['state'] = 'IDLE'
+                partner_info['chat_with'] = None
+                # Send partner the chat_ended notification
+                utilities.send(state.users[chat_with]['socket'], 'chat_ended', {'message': 'Partner disconnected'})
+                # Broadcast updated user list so partner sees available users again
+                handlers.broadcast_user_list()
             except:
                 pass
 

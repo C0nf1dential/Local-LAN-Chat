@@ -58,10 +58,20 @@ def initiate_chat(target_user):
 
 
 def send_chat_message(message):
+    """Send an encrypted chat message to the partner."""
     encrypted = e2ee.encrypt(message)
     # Display message immediately on sender's side
     tui_inputs.DisplayChat(f"You: {message}")
     utilities.send("chat", {"message": encrypted})
+
+
+def end_chat():
+    """End the current chat session and return to user selection."""
+    if state.current_state != state.ClientState.CHATTING:
+        return
+    partner = state.chat_partner
+    utilities.send("chat_end", {"message": "ended"})
+    tui_inputs.DisplayChat(f"Chat with '{partner}' ended.")
 
 
 def handle_chat_request(payload): #incomung

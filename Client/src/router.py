@@ -40,5 +40,12 @@ def route(msg_type, payload): # maami advaith communication protocol: {'type': t
     
     elif msg_type == "chat_ended":
         if state.current_state == state.ClientState.CHATTING:
+            partner = state.chat_partner
             state.current_state = state.ClientState.IDLE
             state.chat_partner = None
+            # Check if partner disconnected abruptly
+            if "Partner disconnected" in payload.get("message", ""):
+                tui_inputs.DisplayChat(f"[DISCONNECTED] {partner} disconnected. Chat ended.")
+            else:
+                tui_inputs.DisplayChat("Chat ended. You will now see the user list.")
+            # Next user_list broadcast will show the list and enable selection

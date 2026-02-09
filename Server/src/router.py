@@ -18,6 +18,10 @@ def route(client, msg_type, payload):
             handlers.handle_chat(username, to, payload)
             return
         
+        if msg_type == "chat_end":
+            handlers.handle_chat_end(client, username)
+            return
+        
     if userstate == "IDLE":
         if msg_type == "chatrequest":
             handlers.handle_chatrequest(client, username, payload)

@@ -57,8 +57,25 @@ def handle_chat(from_username, to, payload):
     # Send message to recipient
     sendsocket = state.users[to]['socket']
     utilities.send(sendsocket, 'chat', payload)
-    # Also send a confirmation back to sender (optional echo)
-    # This ensures sender knows message was delivered
+
+def handle_chat_end(client, from_username):
+    """Handle chat end request from one user, notify both and return to IDLE."""
+    from_user_info = state.users[from_username]
+    partner = from_user_info.get('chat_with')
+    
+    if not partner or partner not in state.users:
+        return
+    
+    # Set both users back to IDLE
+    set_user_state(from_username, "IDLE", None)
+    set_user_state(partner, "IDLE", None)
+    
+    # Notify both users that chat has ended
+    utilities.send(from_username, 'chat_ended', {"message": "Chat ended"})
+    utilities.send(partner, 'chat_ended', {"message": "Chat ended"})
+    
+    # Broadcast updated user list (now both are IDLE)
+    broadcast_user_list()
 
 def broadcast_user_list():
     time.sleep(0.05) # slight delay to ensure state is updated before broadcasting
