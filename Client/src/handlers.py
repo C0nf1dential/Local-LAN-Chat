@@ -85,6 +85,10 @@ def _handle_chat_request_response(from_user, response):
         utilities.send("chatrequest_result", {"message": "accepted", "to": from_user})
     else:
         utilities.send("chatrequest_result", {"message": "declined", "to": from_user})
+        # Reset showingList so next user_list broadcast re-enables input
+        tui_inputs.showingList = False
+        # Re-show the user list to allow selecting another user
+        tui_inputs.ShowUsersList(tui_inputs.userLcached)
 
 
 def handle_chat_accepted(partner):
@@ -102,8 +106,15 @@ def handle_chat_request_result(payload):
         # Don't transition here; wait for chat_started to avoid conflicting with responder's transition
         tui_inputs.DisplayChat(f"Chat with '{requester}' has been accepted!")
     elif message == "declined":
-        tui_inputs.DisplayChat(f"Chat request to '{requester}' was declined. You can try another user.")
-        # State remains IDLE; next user_list broadcast will re-enable selection
+        reason = payload.get("reason", "")
+        if reason:
+            tui_inputs.DisplayChat(f"Chat request to '{requester}' was declined: {reason}")
+        else:
+            tui_inputs.DisplayChat(f"Chat request to '{requester}' was declined. You can try another user.")
+        # Reset showingList flag so next ShowUsersList call will re-enable input
+        tui_inputs.showingList = False
+        # Re-show the user list to allow selecting another user
+        tui_inputs.ShowUsersList(tui_inputs.userLcached)
 
 #from server
 
