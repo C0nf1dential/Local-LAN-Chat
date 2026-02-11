@@ -32,7 +32,7 @@ def start():
     uiReady.set()
     root.mainloop()
 
-def on_enter(event):
+def on_enter(event): #event based callback system because i got fed up with dealing with these blocking functions
     global pending_input_callback
     text = entry.get().strip() # type: ignore
     if not text:
@@ -47,12 +47,10 @@ def on_enter(event):
     
     if pending_input_callback:
         callback = pending_input_callback
-        # for chat mode: keep callback and enabled state
-        # for other prompts: clear callback and disable
         if not state.current_state == state.ClientState.CHATTING:
             pending_input_callback = None
-            set_enabled(False)
-        callback(text)
+            set_enabled(False) #turns textbox off once done, but keeps on for chat
+        callback(text) #!!!!!!!!!!!! crazy system dawg
 
 
 def set_enabled(enabled):
@@ -60,9 +58,9 @@ def set_enabled(enabled):
     if enabled:
         state = "normal"
     else:
-        state = "disabled"
-        prompt_label.config(text="")
-    root.after(0, lambda: entry.config(state=state))
+        state = "disabled"#enables/disables
+        prompt_label.config(text="") #changes label based on context ts tuff
+    root.after(0, lambda: entry.config(state=state)) #passing tis to tkinter loop which is in a seperate thread so we use root.after
 
 def request_input(callback, prompt=""):
     global pending_input_callback, prompt_label
@@ -84,7 +82,7 @@ def ShowUsersList(userlist):
             for user in userlist:
                 print(f"    -{user}")
         userLcached = userlist
-        request_input(handle_username_selection, "Select user: ")
+        request_input(handle_username_selection, "Select user: ") #passing func through arg as callback for sequence of actions
 
     else: #list is already printed
         if userlist != userLcached:
@@ -112,7 +110,7 @@ def ShowError(message):
 def start_chat(chat_partner):
     global prompt_label, showingList, pending_input_callback
     showingList = False  # Exit user selection mode
-    pending_input_callback = lambda msg: handlers.send_chat_message(msg)
+    pending_input_callback = lambda msg: handlers.send_chat_message(msg) #storing the function inside a variable is crazy, this is peak
     prompt_label.config(text=f"Chat with {chat_partner}:")
     set_enabled(True)
 

@@ -28,7 +28,7 @@ def route(msg_type, payload): # maami advaith communication protocol: {'type': t
             handlers.handle_chat_request_result(payload)
     
     elif msg_type == "chat_started":
-        # Transition to CHATTING and set up chat interface
+        # transition to CHATTING and set up chat interface
         state.current_state = state.ClientState.CHATTING
         state.chat_partner = payload.get("with")
         tui_inputs.start_chat(state.chat_partner)

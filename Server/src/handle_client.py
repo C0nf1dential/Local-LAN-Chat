@@ -13,13 +13,12 @@ def _cleanup_client(client):
         chat_with = info.get('chat_with')
         if chat_with and chat_with in state.users:
             try:
-                # Set partner's state back to IDLE
+                # set partner back to idle
                 partner_info = state.users[chat_with]
                 partner_info['state'] = 'IDLE'
                 partner_info['chat_with'] = None
-                # Send partner the chat_ended notification
+                # tell partner and broadcast
                 utilities.send(state.users[chat_with]['socket'], 'chat_ended', {'message': 'Partner disconnected'})
-                # Broadcast updated user list so partner sees available users again
                 handlers.broadcast_user_list()
             except:
                 pass
@@ -35,7 +34,7 @@ def handle_client(client):
         try:
             raw = client.recv(4096)
 
-            # client closed connection cleanly
+            # client closed connection
             if not raw:
                 username, _ = utilities.get_user_by_socket(client)
                 print(f"Client socket closed by peer. username={username}")
@@ -52,20 +51,18 @@ def handle_client(client):
                 else:
                     message = str(raw)
             except Exception:
-                # unable to decode; skip this chunk
+                # cant decode, skip
                 continue
 
-            # parse JSON safely
+            # parse json
             try:
                 data = json.loads(message)
             except json.JSONDecodeError:
-                # malformed or partial message; ignore and continue
                 continue
 
             msg_type = data.get('type')
             payload = data.get('payload', {})
             if not msg_type:
-                # nothing useful, skip
                 continue
 
             try:

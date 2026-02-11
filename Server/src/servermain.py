@@ -12,7 +12,7 @@ def start_server():
     print(f"server started on host: {socket.gethostbyname(socket.gethostname())}, port:{PORT}")
     while True:
         client, address = server.accept()
-        t = threading.Thread(target=handle_client.handle_client, args=(client,))# starts a new thread per client
+        t = threading.Thread(target=handle_client.handle_client, args=(client,)) # new thread per client
         t.daemon = True
         t.start()
         print(f"connected to {address}")

@@ -18,7 +18,7 @@ server = None
 def handle_sigint(sig, frame):
     graceful_shutdown()
 
-signal.signal(signal.SIGINT, handle_sigint)
+signal.signal(signal.SIGINT, handle_sigint) #to handle termin
 
 def connect(server_ip, port):
     global server
@@ -31,7 +31,7 @@ def connect(server_ip, port):
         handlers.show_server_connection_error(str(e))
 
 
-# incoming queue now stored in shared `state` to avoid duplicate-module issues
+# incoming queue stored in state
 def receive():
     global server
     state.connection_ready.wait()
@@ -53,7 +53,7 @@ def receive():
                 pass
 
             try:
-                data = server.recv(1024)
+                data = server.recv(4096)
             except socket.timeout:
                 continue
             except OSError:
@@ -110,12 +110,12 @@ def main():
     global ui_thread, receive_thread
     ui_thread = threading.Thread(target=tui_inputs.start, daemon=True)
     ui_thread.start()
-    tui_inputs.uiReady.wait()
+    tui_inputs.uiReady.wait() #wait until ui isready
     
     # Prompt for server info (IP and port) before connecting
     handlers.prompt_for_server_info()
 
-    while True:
+    while not state.shutdown_event.is_set():
         datadict = state.incoming.get()
 
         if datadict is None:
