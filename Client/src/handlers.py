@@ -20,13 +20,12 @@ def handle_server_port(port_str):
         port = int(port_str)
         clientmain.connect(state.server_ip, port)
         # only prompt for registration if connection was established
-        if getattr(state, 'connection_ready', None) and state.connection_ready.is_set():
-            # start the receive thread now that connection is ready
-            if getattr(state, 'receive_thread', None) is None:
-                state.receive_thread = threading.Thread(target=clientmain.receive, daemon=True)
-                state.receive_thread.start()
+        if state.connection_ready.is_set():#maybe in the future i might make this asynchronous so lets keep the check
+            # start the receive thread now that connection is ready, there, you can now pause your hair loss over this issue omg
+            state.receive_thread = threading.Thread(target=clientmain.receive, daemon=True)
+            state.receive_thread.start()
             prompt_for_registration()
-    except ValueError:
+    except ValueError: #beautiful error handling from advaith
         tui_inputs.ShowError("Port must be a valid number")
         handle_server_ip(state.server_ip)
 

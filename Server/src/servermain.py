@@ -12,19 +12,10 @@ def start_server():
     print(f"server started on host: {socket.gethostbyname(socket.gethostname())}, port:{PORT}")
     while True:
         client, address = server.accept()
-        t = threading.Thread(target=handle_client.handle_client, args=(client,)) # new thread per client
+        t = threading.Thread(target=handle_client.handle_client, args=(client,))# starts a new thread per client
         t.daemon = True
         t.start()
         print(f"connected to {address}")
-
-def get_local_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("8.8.8.8", 80))  # doesn't send anything
-        ip = s.getsockname()[0]
-    finally:
-        s.close()
-    return ip
 
 if __name__ == "__main__":
     start_server()

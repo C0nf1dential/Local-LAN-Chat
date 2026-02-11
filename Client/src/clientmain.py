@@ -5,6 +5,7 @@ import state
 import tui_inputs
 import socket
 import json
+from json import JSONDecoder
 import handlers
 import utilities
 import threading
@@ -33,52 +34,50 @@ def connect(server_ip, port):
 
 # incoming queue stored in state
 def receive():
+    '''TCP is stream based 
+    typically you'd use .recv() to receive data from the server but because of that 
+    i have been losing messages between packets 
+    so i use a buffer to store the data and decode it progressively
+    also im too lazy to refactor server side to add \n after each line
+    AI helped me here but i learnt every part of it'''
     global server
     state.connection_ready.wait()
-
-    if server is None:
-        state.incoming.put(None)
-        return
-
-    import json as _json
-    from json import JSONDecoder
-
     decoder = JSONDecoder()
     buffer = ""
-    try:
+    try:        
+        try:
+            server.settimeout(0.5) #ensures that the thread doesn't block forever, it polls every 0.5sec to check if new message arrived
+        except:
+            pass #incase socket object is destroyed
+
         while not state.shutdown_event.is_set():
-            try:
-                server.settimeout(0.5)
-            except:
-                pass
 
             try:
                 data = server.recv(4096)
-            except socket.timeout:
+            except socket.timeout: #no new message
                 continue
-            except OSError:
+            except OSError: #server disconnected
                 break
-
-            if not data:
+            if not data: #server disconnected
                 break
 
             try:
                 chunk = data.decode()
             except Exception:
                 continue
-            buffer += chunk
+            buffer += chunk#accumulates decoded chunks until its fully usuable
 
             # handle concatenated JSON objects by progressively decoding
             while buffer:
                 try:
-                    obj, idx = decoder.raw_decode(buffer)
-                    buffer = buffer[idx:].lstrip()
-                    state.incoming.put(obj)
-                except _json.JSONDecodeError:
-                    # not enough data yet for a full JSON object
+                    obj, endIndex = decoder.raw_decode(buffer)#decodes one object of the buffer at a time
+                    buffer = buffer[endIndex:].lstrip()#cuts the decoded object from the buffer
+                    state.incoming.put(obj)#puts the decoded object in the queue
+                except json.JSONDecodeError:
+                    #we can't decode the buffer yet, so we wait for more data
                     break
-    finally:
-        state.incoming.put(None)
+    finally: 
+        state.incoming.put(None) #graceful shutdown (main() loop will break in this case)
 
 
 def graceful_shutdown():

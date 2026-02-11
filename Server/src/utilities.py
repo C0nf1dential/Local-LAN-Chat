@@ -6,7 +6,7 @@ import router
 import json
 
 
-def _resolve_socket(target):
+def get_socket_from_user(target):
     if isinstance(target, str):
         info = state.users.get(target)
         if not info:
@@ -15,7 +15,7 @@ def _resolve_socket(target):
     return target
 
 def send(target, msg_type, payload):
-    sock = _resolve_socket(target)
+    sock = get_socket_from_user(target)
     if not sock:
         return
     data = json.dumps({'type': msg_type, 'payload': payload})
