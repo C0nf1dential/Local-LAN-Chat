@@ -25,12 +25,12 @@ def remove_user(username):
 
 
 
-def set_user_state(username, new_state, chat_with=None):
+def set_user_state(username, new_state, chat_with=None, should_broadcast=True):
     user = state.users[username]
     user["state"] = new_state
     user["chat_with"] = chat_with
     # only broadcast when returning to idle, not during chatting transitions
-    if new_state == "IDLE":
+    if new_state == "IDLE" and should_broadcast:
         broadcast_user_list()
     print(state.users)
 
@@ -63,8 +63,8 @@ def handle_chat_end(client, from_username):
         return
     
     # set both users back to idle
-    set_user_state(from_username, "IDLE", None)
-    set_user_state(partner, "IDLE", None)
+    set_user_state(from_username, "IDLE", None, should_broadcast=False)
+    set_user_state(partner, "IDLE", None, should_broadcast=False)
     
     # notify both and broadcast
     utilities.send(from_username, 'chat_ended', {"message": "Chat ended"})
