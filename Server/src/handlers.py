@@ -72,9 +72,11 @@ def handle_chat_end(client, from_username):
 
 def broadcast_user_list():
     # only send idle users to idle users
-    idle_users = [u for u, info in state.users.items() if info['state'] == "IDLE"]
+    # snapshot to prevent 'dictionary changed size during iteration'
+    user_items = list(state.users.items())
+    idle_users = [u for u, info in user_items if info['state'] == "IDLE"]
     payload = {'users': idle_users}
-    for username, info in state.users.items():
+    for username, info in user_items:
         if info['state'] == "IDLE":
             sock = info.get('socket')
             if sock:
