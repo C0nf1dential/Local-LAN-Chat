@@ -4,7 +4,6 @@ import state
 import servermain
 import utilities
 import json
-import time
 
 def add_user(username, client, should_broadcast=True):
     state.users[username] = {
@@ -72,7 +71,6 @@ def handle_chat_end(client, from_username):
     broadcast_user_list()
 
 def broadcast_user_list():
-    time.sleep(0.05) # slight delay to ensure state is updated before broadcasting
     # only send idle users to idle users
     idle_users = [u for u, info in state.users.items() if info['state'] == "IDLE"]
     payload = {'users': idle_users}
