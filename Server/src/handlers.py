@@ -102,7 +102,10 @@ def handle_chatrequest(client, from_username, payload):
         return
     
     # forward request to target
-    utilities.send(target_user, 'chatrequest', {"from": from_username})
+    relay_payload = {"from": from_username}
+    if "pubkey" in payload:
+        relay_payload["pubkey"] = payload["pubkey"]
+    utilities.send(target_user, 'chatrequest', relay_payload)
 
 
 def handle_chatrequest_result(client, from_username, payload):
@@ -118,7 +121,11 @@ def handle_chatrequest_result(client, from_username, payload):
         set_user_state(to_user, "CHATTING", from_username)
         
         # notify both that chat has started
-        utilities.send(to_user, 'chatrequest_result', {"message": "accepted", "from": from_username})
+        relay_payload = {"message": "accepted", "from": from_username}
+        if "pubkey" in payload:
+            relay_payload["pubkey"] = payload["pubkey"]
+        utilities.send(to_user, 'chatrequest_result', relay_payload)
+
         utilities.send(to_user, 'chat_started', {"with": from_username})
         utilities.send(from_username, 'chat_started', {"with": to_user})
         

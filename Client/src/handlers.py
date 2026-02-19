@@ -52,11 +52,13 @@ def submit_registration(username):
     utilities.send("register", {"username": username})
 
 def initiate_chat(target_user): #i mean send chatrequest
-    utilities.send("chatrequest", {"target": target_user})
+    priv, pub = e2ee.generate_dh_keys()
+    state.dh_private_key = priv
+    utilities.send("chatrequest", {"target": target_user, "pubkey": pub})
 
 
 def send_chat_message(message):
-    encrypted = e2ee.encrypt(message)#not implemented yet
+    encrypted = e2ee.encrypt(message, state.shared_secret)
     # risplay message immediately on sender side
     tui_inputs.DisplayChat(f"You: {message}")
     utilities.send("chat", {"message": encrypted})
@@ -72,13 +74,18 @@ def end_chat():
 
 def handle_chat_request(payload): #incomung
     from_user = payload.get("from")
+    partner_pubkey = payload.get("pubkey")
     prompt = f"User '{from_user}' wants to chat. Accept? (yes/no): "
-    tui_inputs.request_input(lambda response: _handle_chat_request_response(from_user, response), prompt)
+    tui_inputs.request_input(lambda response: _handle_chat_request_response(from_user, response, partner_pubkey), prompt)
 
-def _handle_chat_request_response(from_user, response): 
+def _handle_chat_request_response(from_user, response, partner_pubkey):
     response = response.lower().strip()
     if response == "yes":
-        utilities.send("chatrequest_result", {"message": "accepted", "to": from_user})
+        priv, pub = e2ee.generate_dh_keys()
+        state.dh_private_key = priv
+        if partner_pubkey:
+            state.shared_secret = e2ee.compute_shared_secret(priv, partner_pubkey)
+        utilities.send("chatrequest_result", {"message": "accepted", "to": from_user, "pubkey": pub})
     else:
         utilities.send("chatrequest_result", {"message": "declined", "to": from_user})
         tui_inputs.showingList = False
@@ -94,8 +101,11 @@ def handle_chat_accepted(partner):
 def handle_chat_request_result(payload):
     message = payload.get("message")
     requester = payload.get("from")
+    partner_pubkey = payload.get("pubkey")
     
     if message == "accepted":
+        if partner_pubkey and state.dh_private_key:
+            state.shared_secret = e2ee.compute_shared_secret(state.dh_private_key, partner_pubkey)
         # Don't transition here; wait for chat_started to avoid conflicting with responder's transition
         tui_inputs.DisplayChat(f"Chat with '{requester}' has been accepted!")
     elif message == "declined":
@@ -112,7 +122,7 @@ def handle_chat_request_result(payload):
 #from server
 
 def display_chat_message(payload):
-    message = e2ee.decrypt(payload["message"])
+    message = e2ee.decrypt(payload["message"], state.shared_secret)
     tui_inputs.DisplayChat(message)
 
 
